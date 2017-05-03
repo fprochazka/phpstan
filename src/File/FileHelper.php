@@ -33,8 +33,10 @@ class FileHelper
 		return rtrim($this->getWorkingDirectory(), '/\\') . DIRECTORY_SEPARATOR . ltrim($path, '/\\');
 	}
 
-	public function normalizePath(string $path): string
+	public function normalizePath(string $originalPath): string
 	{
+		list($scheme, $path) = $this->parsePath($originalPath);
+
 		$path = str_replace('\\', '/', $path);
 		$path = preg_replace('~/{2,}~', '/', $path);
 
@@ -47,13 +49,52 @@ class FileHelper
 				continue;
 			}
 			if ($pathPart === '..') {
-				array_pop($normalizedPathParts);
+				$removedPart = array_pop($normalizedPathParts);
+				if ($scheme === 'phar' && substr($removedPart, -5) === '.phar') {
+					$scheme = null;
+				}
 			} else {
 				$normalizedPathParts[] = $pathPart;
 			}
 		}
 
-		return $pathRoot . implode(DIRECTORY_SEPARATOR, $normalizedPathParts);
+		return ($scheme !== null ? $scheme . '://' : '') . $pathRoot . implode(DIRECTORY_SEPARATOR, $normalizedPathParts);
+	}
+
+	public function resolveTempDir(string $rootDir): string
+	{
+		$tmpDir = getenv('PHPSTAN_TEMP_DIR');
+		if (!empty($tmpDir)) {
+			if (!is_dir($tmpDir) || !is_writable($tmpDir)) {
+				throw new \RuntimeException(sprintf('Directory %s provided in PHPSTAN_TEMP_DIR is not writable.', $tmpDir));
+			}
+			return $tmpDir;
+		}
+
+		$tmpDir = $rootDir . '/tmp';
+		list($scheme,) = $this->parsePath($tmpDir);
+		if ($scheme !== 'phar') {
+			return $tmpDir;
+		}
+
+		$tmpDir = tempnam(sys_get_temp_dir(), 'phpstan_');
+		if (file_exists($tmpDir)) {
+			unlink($tmpDir);
+		}
+		if (!@mkdir($tmpDir) && !is_dir($tmpDir)) {
+			throw new \RuntimeException(sprintf('Cannot create a temp directory in system path %s', $tmpDir));
+		}
+
+		return $tmpDir;
+	}
+
+	private function parsePath(string $path): array
+	{
+		if (preg_match('~^([a-z]+)\\:\\/\\/(.+)~', $path, $m)) {
+			return [$m[1], $m[2]];
+		}
+
+		return [null, $path];
 	}
 
 }

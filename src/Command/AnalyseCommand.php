@@ -56,7 +56,7 @@ class AnalyseCommand extends \Symfony\Component\Console\Command\Command
 		$fileHelper = new FileHelper($currentWorkingDirectory);
 
 		$rootDir = $fileHelper->normalizePath(__DIR__ . '/../..');
-		$tmpDir = $rootDir . '/tmp';
+		$tmpDir = $fileHelper->resolveTempDir($rootDir);
 		$confDir = $rootDir . '/conf';
 
 		$configurator = new Configurator();
