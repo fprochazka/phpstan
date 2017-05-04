@@ -54,11 +54,6 @@ class AnalyseCommand extends \Symfony\Component\Console\Command\Command
 		$tmpDir = $rootDir . '/tmp';
 		$confDir = $rootDir . '/conf';
 
-		$configurator = new Configurator();
-		$configurator->defaultExtensions = [];
-		$configurator->setDebugMode(true);
-		$configurator->setTempDirectory($tmpDir);
-
 		$projectConfigFile = $input->getOption('configuration');
 		$levelOption = $input->getOption(self::OPTION_LEVEL);
 		$defaultLevelUsed = false;
@@ -86,6 +81,11 @@ class AnalyseCommand extends \Symfony\Component\Console\Command\Command
 
 			$configFiles[] = $projectConfigFile;
 		}
+
+		$configurator = new Configurator();
+		$configurator->defaultExtensions = [];
+		$configurator->setDebugMode(true);
+		$configurator->setTempDirectory($tmpDir);
 
 		foreach ($configFiles as $configFile) {
 			$configurator->addConfig($configFile);
