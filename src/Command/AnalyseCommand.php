@@ -3,6 +3,7 @@
 namespace PHPStan\Command;
 
 use Nette\Configurator;
+use Nette\DI\Config\Loader;
 use PhpParser\Node\Stmt\Catch_;
 use PHPStan\File\FileHelper;
 use Symfony\Component\Console\Input\InputArgument;
@@ -51,7 +52,6 @@ class AnalyseCommand extends \Symfony\Component\Console\Command\Command
 		$fileHelper = new FileHelper($currentWorkingDirectory);
 
 		$rootDir = $fileHelper->normalizePath(__DIR__ . '/../..');
-		$tmpDir = $rootDir . '/tmp';
 		$confDir = $rootDir . '/conf';
 
 		$projectConfigFile = $input->getOption('configuration');
@@ -80,11 +80,25 @@ class AnalyseCommand extends \Symfony\Component\Console\Command\Command
 			}
 
 			$configFiles[] = $projectConfigFile;
+
+			$loader = new Loader();
+			$projectConfig = $loader->load($projectConfigFile, null);
+			if (isset($projectConfig['parameters']['tmpDir'])) {
+				$tmpDir = $projectConfig['parameters']['tmpDir'];
+			}
+		}
+
+		if (!isset($tmpDir)) {
+			$tmpDir = sys_get_temp_dir() . '/phpstan';
 		}
 
 		$configurator = new Configurator();
 		$configurator->defaultExtensions = [];
 		$configurator->setDebugMode(true);
+
+		if (!@mkdir($tmpDir, 0777, true) && !is_dir($tmpDir)) {
+			throw new \RuntimeException(sprintf('Cannot create a temp directory %s', $tmpDir));
+		}
 		$configurator->setTempDirectory($tmpDir);
 
 		foreach ($configFiles as $configFile) {
